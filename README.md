@@ -6,7 +6,7 @@ Get push notifications when your R package moves through [CRAN's incoming queue]
 
 **`cran-notifier.R`** does everything in a single script:
 
-1. Reads config from `config.env`
+1. Reads config from `config.yml`
 2. Queries CRAN incoming via [`foghorn::cran_incoming()`](https://fmichonneau.github.io/foghorn/)
 3. Compares against the previous state (stored in `rappdirs::user_data_dir("cran-notifier")`)
 4. Sends push notifications for any changes via [ntfy](https://ntfy.sh) using [`httr2`](https://httr2.r-lib.org/)
@@ -30,7 +30,7 @@ A **systemd user timer** runs the check every 15 minutes.
 - R (4.1+)
 - `systemd` (for automated scheduling; optional if running manually)
 
-R package dependencies (`foghorn`, `jsonlite`, `httr2`, `rappdirs`) are **auto-installed** on first run via [`pak`](https://pak.r-lib.org/) if missing.
+R package dependencies (`foghorn`, `jsonlite`, `httr2`, `rappdirs`, `yaml`) are **auto-installed** on first run via [`pak`](https://pak.r-lib.org/) if missing.
 
 ## Setup
 
@@ -44,22 +44,25 @@ cd cran-notifier
 ### 2. Create your config
 
 ```bash
-cp config.env.example config.env
+cp config.yml.example config.yml
 ```
 
-Edit `config.env`:
+Edit `config.yml`:
 
-```bash
-NTFY_TOPIC="https://ntfy.sh/your-unique-topic-name"
-NTFY_TOKEN=""  # optional — only needed for token-protected topics
-PACKAGES="mypkg otherpkg"  # space-separated list of packages to monitor
+```yaml
+ntfy_topic: https://ntfy.sh/your-unique-topic-name
+# ntfy_token: tk_your_token_here  # optional — only needed for token-protected topics
+
+packages:
+  - mypkg
+  - otherpkg
 ```
 
 **ntfy topic**: You can use the free public [ntfy.sh](https://ntfy.sh/app) service — just pick a unique, hard-to-guess topic name. Install the [ntfy app](https://ntfy.sh/#subscribe-phone) on your phone and subscribe to the same topic to receive notifications. Alternatively, you can [self-host ntfy](https://docs.ntfy.sh/install/).
 
-**Token authentication** is optional. You only need `NTFY_TOKEN` if your topic requires access control (e.g., on a self-hosted instance with ACLs). Leave it empty for open topics. See the [ntfy auth docs](https://docs.ntfy.sh/publish/#access-tokens) for details.
+**Token authentication** is optional. You only need `ntfy_token` if your topic requires access control (e.g., on a self-hosted instance with ACLs). Leave it commented out for open topics. See the [ntfy auth docs](https://docs.ntfy.sh/publish/#access-tokens) for details.
 
-The `config.env` file is gitignored so your configuration stays local.
+The `config.yml` file is gitignored so your configuration stays local.
 
 ### 3. Test it
 

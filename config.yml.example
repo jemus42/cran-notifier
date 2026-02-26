@@ -1,0 +1,5 @@
+ntfy_topic: https://ntfy.sh/my-cran-notifications
+# ntfy_token: tk_your_token_here  # optional — only needed for token-protected topics
+
+packages:
+  - mypkg

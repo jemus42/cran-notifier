@@ -2,7 +2,7 @@
 
 # --- Dependencies -----------------------------------------------------------
 
-required_pkgs <- c("foghorn", "jsonlite", "httr2", "rappdirs")
+required_pkgs <- c("foghorn", "jsonlite", "httr2", "rappdirs", "yaml")
 missing <- required_pkgs[!vapply(required_pkgs, requireNamespace, logical(1), quietly = TRUE)]
 if (length(missing) > 0) {
   if (!requireNamespace("pak", quietly = TRUE)) {
@@ -17,30 +17,17 @@ script_dir <- dirname(normalizePath(commandArgs(trailingOnly = FALSE)[
   grep("^--file=", commandArgs(trailingOnly = FALSE))
 ] |> sub("^--file=", "", x = _), mustWork = FALSE))
 
-config_file <- file.path(script_dir, "config.env")
+config_file <- file.path(script_dir, "config.yml")
 if (!file.exists(config_file)) {
-  stop("config.env not found. Copy config.env.example to config.env and edit it.")
+  stop("config.yml not found. Copy config.yml.example to config.yml and edit it.")
 }
 
-config_lines <- readLines(config_file, warn = FALSE)
-config_lines <- config_lines[!grepl("^\\s*#|^\\s*$", config_lines)]
-for (line in config_lines) {
-  key_val <- sub("\\s*#.*$", "", line)
-  key <- sub("=.*", "", key_val)
-  val <- sub("^[^=]+=", "", key_val)
-  val <- gsub('^"|"$', "", trimws(val))
-  args <- setNames(list(val), key)
-  do.call(Sys.setenv, args)
-}
+config <- yaml::read_yaml(config_file)
 
-ntfy_topic <- Sys.getenv("NTFY_TOPIC")
-ntfy_token <- Sys.getenv("NTFY_TOKEN")
-packages <- strsplit(Sys.getenv("PACKAGES"), "\\s+")[[1]]
-
-if (ntfy_topic == "") stop("NTFY_TOPIC not set in config.env")
-if (length(packages) == 0 || all(packages == "")) {
-  stop("PACKAGES not set in config.env")
-}
+ntfy_topic <- config$ntfy_topic %||% stop("ntfy_topic not set in config.yml")
+ntfy_token <- config$ntfy_token %||% ""
+packages <- config$packages %||% stop("packages not set in config.yml")
+if (length(packages) == 0) stop("packages list is empty in config.yml")
 
 # --- State file paths -------------------------------------------------------
 
