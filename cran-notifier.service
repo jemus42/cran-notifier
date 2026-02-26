@@ -1,0 +1,8 @@
+[Unit]
+Description=Check CRAN incoming queue and notify on changes
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/Rscript /home/lukas/dev/cran-notifier/cran-notifier.R
