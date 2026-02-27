@@ -13,9 +13,11 @@ if (length(missing) > 0) {
 
 # --- Config -----------------------------------------------------------------
 
-script_dir <- dirname(normalizePath(commandArgs(trailingOnly = FALSE)[
-  grep("^--file=", commandArgs(trailingOnly = FALSE))
-] |> sub("^--file=", "", x = _), mustWork = FALSE))
+script_dir <- commandArgs(trailingOnly = FALSE) |>
+  grep("^--file=", x = _, value = TRUE) |>
+  sub("^--file=", "", x = _) |>
+  normalizePath(mustWork = FALSE) |>
+  dirname()
 
 config_file <- file.path(script_dir, "config.yml")
 if (!file.exists(config_file)) {
@@ -86,7 +88,12 @@ moved <- common[common$cran_folder != common$cran_folder.prev, , drop = FALSE]
 
 # --- Send notifications -----------------------------------------------------
 
-send_notification <- function(title, message, priority = "default", tags = "package") {
+cran_url <- function(pkg) {
+  sprintf("https://cran.r-project.org/package=%s", pkg)
+}
+
+send_notification <- function(title, message, priority = "default", tags = "package",
+                              click = NULL) {
   req <- httr2::request(ntfy_topic) |>
     httr2::req_method("POST") |>
     httr2::req_headers(
@@ -95,6 +102,10 @@ send_notification <- function(title, message, priority = "default", tags = "pack
       Tags = tags
     ) |>
     httr2::req_body_raw(message, type = "text/plain")
+
+  if (!is.null(click)) {
+    req <- req |> httr2::req_headers(Click = click)
+  }
 
   if (nzchar(ntfy_token)) {
     req <- req |> httr2::req_auth_bearer_token(ntfy_token)
@@ -115,7 +126,8 @@ for (i in seq_len(nrow(appeared))) {
     send_notification(
       title = sprintf("CRAN: %s %s", row$package, row$version),
       message = sprintf("Appeared in %s", row$cran_folder),
-      tags = "package,new"
+      tags = "package,new",
+      click = cran_url(row$package)
     ),
     error = function(e) {
       warning("Failed to send notification: ", conditionMessage(e))
@@ -135,19 +147,22 @@ for (i in seq_len(nrow(moved))) {
     send_args <- list(
       title = sprintf("CRAN: %s %s", row$package, row$version),
       message = "Moved to publish (pending final publication)",
-      priority = "high", tags = "tada"
+      priority = "high", tags = "tada",
+      click = cran_url(row$package)
     )
   } else if (to == "archive") {
     send_args <- list(
       title = sprintf("CRAN: %s %s", row$package, row$version),
       message = "Moved to archive (rejected/withdrawn)",
-      priority = "high", tags = "warning"
+      priority = "high", tags = "warning",
+      click = cran_url(row$package)
     )
   } else {
     send_args <- list(
       title = sprintf("CRAN: %s %s", row$package, row$version),
       message = sprintf("Moved from %s to %s", from, to),
-      tags = "arrow_right"
+      tags = "arrow_right",
+      click = cran_url(row$package)
     )
   }
   tryCatch(
@@ -168,13 +183,15 @@ for (i in seq_len(nrow(disappeared))) {
     send_args <- list(
       title = sprintf("CRAN: %s %s", row$package, row$version),
       message = "Disappeared from publish \u2014 likely on CRAN now!",
-      priority = "high", tags = "rocket"
+      priority = "high", tags = "rocket",
+      click = cran_url(row$package)
     )
   } else {
     send_args <- list(
       title = sprintf("CRAN: %s %s", row$package, row$version),
       message = sprintf("No longer in CRAN incoming (was in %s)", row$cran_folder),
-      tags = "eyes"
+      tags = "eyes",
+      click = cran_url(row$package)
     )
   }
   tryCatch(
