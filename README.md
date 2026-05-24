@@ -1,6 +1,10 @@
 # CRAN Incoming Notifier
 
-Get push notifications when your R package moves through [CRAN's incoming queue](https://cran.r-project.org/incoming/). Tracks status changes (new submission, folder moves, acceptance/rejection) and sends notifications via [Pushover](https://pushover.net/).
+Get push notifications when your R package moves through [CRAN's incoming queue](https://cran.r-project.org/incoming/). Tracks status changes (new submission, folder moves, acceptance/rejection) and sends notifications to your phone/desktop.
+
+## Notification backend
+
+[Pushover](https://pushover.net/) is the assumed backend right now. The script was originally written to publish to [ntfy](https://ntfy.sh/) and was migrated to Pushover when the maintainer's self-hosted ntfy was retired; adapting it to another HTTP-push service is a small edit to the `send_notification` function.
 
 ## How it works
 
@@ -37,8 +41,8 @@ R package dependencies (`foghorn`, `jsonlite`, `httr2`, `rappdirs`, `yaml`) are 
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/jemus42/ntfy-cran-notifier.git
-cd ntfy-cran-notifier
+git clone https://github.com/jemus42/cran-notifier.git
+cd cran-notifier
 ```
 
 ### 2. Get Pushover credentials
