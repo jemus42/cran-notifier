@@ -1,5 +1,16 @@
-pushover_token: your_pushover_app_token_here
-pushover_user:  your_pushover_user_key_here
+# Pushover credentials are read from one of (in order):
+#   1. env vars PUSHOVER_TOKEN + PUSHOVER_USER
+#   2. pushover_token / pushover_user keys in this file
+#   3. ~/.config/pushover/credentials.yml (host-level default)
+#
+# For the host-level default (recommended), create
+#   ~/.config/pushover/credentials.yml
+# with `token:` and `user:` keys, chmod 600. Then this file only needs the
+# packages list.
+#
+# If you'd rather embed credentials per-script, uncomment these:
+# pushover_token: your_pushover_app_token_here
+# pushover_user:  your_pushover_user_key_here
 
 packages:
   - mypkg

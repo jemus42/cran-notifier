@@ -26,10 +26,49 @@ if (!file.exists(config_file)) {
 
 config <- yaml::read_yaml(config_file)
 
-pushover_token <- config$pushover_token %||% stop("pushover_token not set in config.yml")
-pushover_user  <- config$pushover_user  %||% stop("pushover_user not set in config.yml")
-packages       <- config$packages       %||% stop("packages not set in config.yml")
+packages <- config$packages %||% stop("packages not set in config.yml")
 if (length(packages) == 0) stop("packages list is empty in config.yml")
+
+# --- Pushover credentials ---------------------------------------------------
+# Lookup precedence (first hit wins):
+#   1. Env vars PUSHOVER_TOKEN + PUSHOVER_USER
+#   2. config.yml keys pushover_token + pushover_user (per-script override)
+#   3. ~/.config/pushover/credentials.yml (host-level default, XDG)
+
+load_pushover_creds <- function(config) {
+  env_token <- Sys.getenv("PUSHOVER_TOKEN", unset = "")
+  env_user  <- Sys.getenv("PUSHOVER_USER",  unset = "")
+  if (nzchar(env_token) && nzchar(env_user)) {
+    return(list(token = env_token, user = env_user, source = "env"))
+  }
+
+  cfg_token <- config$pushover_token
+  cfg_user  <- config$pushover_user
+  if (!is.null(cfg_token) && !is.null(cfg_user) &&
+      nzchar(cfg_token) && nzchar(cfg_user)) {
+    return(list(token = cfg_token, user = cfg_user, source = "config.yml"))
+  }
+
+  cred_file <- file.path(rappdirs::user_config_dir("pushover"), "credentials.yml")
+  if (file.exists(cred_file)) {
+    creds <- yaml::read_yaml(cred_file)
+    tok <- creds$token %||% stop("`token` missing in ", cred_file)
+    usr <- creds$user  %||% stop("`user` missing in ",  cred_file)
+    return(list(token = tok, user = usr, source = cred_file))
+  }
+
+  stop(
+    "Pushover credentials not found. Set them by either:\n",
+    "  - exporting PUSHOVER_TOKEN and PUSHOVER_USER, or\n",
+    "  - adding pushover_token/pushover_user to config.yml, or\n",
+    "  - creating ", cred_file, " with token: and user: keys (chmod 600)."
+  )
+}
+
+.creds <- load_pushover_creds(config)
+pushover_token <- .creds$token
+pushover_user  <- .creds$user
+message("Using Pushover credentials from: ", .creds$source)
 
 # --- State file paths -------------------------------------------------------
 
