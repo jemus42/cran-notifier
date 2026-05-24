@@ -1,6 +1,6 @@
 # CRAN Incoming Notifier
 
-Get push notifications when your R package moves through [CRAN's incoming queue](https://cran.r-project.org/incoming/). Tracks status changes (new submission, folder moves, acceptance/rejection) and sends notifications via [ntfy](https://ntfy.sh).
+Get push notifications when your R package moves through [CRAN's incoming queue](https://cran.r-project.org/incoming/). Tracks status changes (new submission, folder moves, acceptance/rejection) and sends notifications via [Pushover](https://pushover.net/).
 
 ## How it works
 
@@ -9,7 +9,7 @@ Get push notifications when your R package moves through [CRAN's incoming queue]
 1. Reads config from `config.yml`
 2. Queries CRAN incoming via [`foghorn::cran_incoming()`](https://fmichonneau.github.io/foghorn/)
 3. Compares against the previous state (stored in `rappdirs::user_data_dir("cran-notifier")`)
-4. Sends push notifications for any changes via [ntfy](https://ntfy.sh) using [`httr2`](https://httr2.r-lib.org/)
+4. Sends push notifications for any changes via the [Pushover API](https://pushover.net/api) using [`httr2`](https://httr2.r-lib.org/)
 5. Saves the new state (only after all notifications succeed, so failures are retried)
 
 A **systemd user timer** runs the check every 15 minutes.
@@ -37,11 +37,18 @@ R package dependencies (`foghorn`, `jsonlite`, `httr2`, `rappdirs`, `yaml`) are 
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/jmbuhr/cran-notifier.git
-cd cran-notifier
+git clone https://github.com/jemus42/ntfy-cran-notifier.git
+cd ntfy-cran-notifier
 ```
 
-### 2. Create your config
+### 2. Get Pushover credentials
+
+1. Sign up at [pushover.net](https://pushover.net/) — there's a one-time fee per platform but a 30-day free trial.
+2. Your **user key** is shown on the dashboard.
+3. Create an **application token** at [pushover.net/apps/build](https://pushover.net/apps/build) — you'll use this as `pushover_token`.
+4. Install the Pushover app on the device(s) you want notifications on.
+
+### 3. Create your config
 
 ```bash
 cp config.yml.example config.yml
@@ -50,19 +57,15 @@ cp config.yml.example config.yml
 Edit `config.yml`:
 
 ```yaml
-ntfy_topic: https://ntfy.sh/your-unique-topic-name
-# ntfy_token: tk_your_token_here  # optional — only needed for token-protected topics
+pushover_token: your_pushover_app_token_here
+pushover_user:  your_pushover_user_key_here
 
 packages:
   - mypkg
   - otherpkg
 ```
 
-**ntfy topic**: You can use the free public [ntfy.sh](https://ntfy.sh/app) service — just pick a unique, hard-to-guess topic name. Install the [ntfy app](https://ntfy.sh/#subscribe-phone) on your phone and subscribe to the same topic to receive notifications. Alternatively, you can [self-host ntfy](https://docs.ntfy.sh/install/).
-
-**Token authentication** is optional. You only need `ntfy_token` if your topic requires access control (e.g., on a self-hosted instance with ACLs). Leave it commented out for open topics. See the [ntfy auth docs](https://docs.ntfy.sh/publish/#access-tokens) for details.
-
-The `config.yml` file is gitignored so your configuration stays local.
+The `config.yml` file is gitignored so your credentials stay local.
 
 ### 3. Test it
 

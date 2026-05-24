@@ -26,9 +26,9 @@ if (!file.exists(config_file)) {
 
 config <- yaml::read_yaml(config_file)
 
-ntfy_topic <- config$ntfy_topic %||% stop("ntfy_topic not set in config.yml")
-ntfy_token <- config$ntfy_token %||% ""
-packages <- config$packages %||% stop("packages not set in config.yml")
+pushover_token <- config$pushover_token %||% stop("pushover_token not set in config.yml")
+pushover_user  <- config$pushover_user  %||% stop("pushover_user not set in config.yml")
+packages       <- config$packages       %||% stop("packages not set in config.yml")
 if (length(packages) == 0) stop("packages list is empty in config.yml")
 
 # --- State file paths -------------------------------------------------------
@@ -92,26 +92,53 @@ cran_url <- function(pkg) {
   sprintf("https://cran.r-project.org/package=%s", pkg)
 }
 
-send_notification <- function(title, message, priority = "default", tags = "package",
+# Map ntfy-style priority strings to Pushover integer priorities so the
+# call sites below can keep their human-readable labels.
+pushover_priority <- function(label) {
+  switch(label,
+         min     = -2L,
+         low     = -1L,
+         default =  0L,
+         high    =  1L,
+         max     =  2L,
+         0L)
+}
+
+# Map the old ntfy emoji-tag names to literal emoji we prefix on the title,
+# since Pushover has no tags/emoji-rendering layer.
+emoji_for_tag <- function(tag) {
+  switch(tag,
+         "package,new"  = "\U0001F4E6",  # package
+         "arrow_right"  = "➡",      # rightwards arrow
+         "tada"         = "\U0001F389",  # party popper
+         "warning"      = "⚠",      # warning sign
+         "rocket"       = "\U0001F680",  # rocket
+         "eyes"         = "\U0001F440",  # eyes
+         "")
+}
+
+send_notification <- function(title, message, priority = "default", tags = "",
                               click = NULL) {
-  req <- httr2::request(ntfy_topic) |>
-    httr2::req_method("POST") |>
-    httr2::req_headers(
-      Title = title,
-      Priority = priority,
-      Tags = tags
-    ) |>
-    httr2::req_body_raw(message, type = "text/plain")
+  emoji <- emoji_for_tag(tags)
+  if (nzchar(emoji)) {
+    title <- paste(emoji, title)
+  }
 
+  fields <- list(
+    token    = pushover_token,
+    user     = pushover_user,
+    title    = title,
+    message  = message,
+    priority = as.integer(pushover_priority(priority))
+  )
   if (!is.null(click)) {
-    req <- req |> httr2::req_headers(Click = click)
+    fields$url <- click
+    fields$url_title <- "Open on CRAN"
   }
 
-  if (nzchar(ntfy_token)) {
-    req <- req |> httr2::req_auth_bearer_token(ntfy_token)
-  }
-
-  req |>
+  httr2::request("https://api.pushover.net/1/messages.json") |>
+    httr2::req_method("POST") |>
+    httr2::req_body_form(!!!fields) |>
     httr2::req_error(is_error = function(resp) FALSE) |>
     httr2::req_perform()
 }
@@ -182,7 +209,7 @@ for (i in seq_len(nrow(disappeared))) {
   if (row$cran_folder == "publish") {
     send_args <- list(
       title = sprintf("CRAN: %s %s", row$package, row$version),
-      message = "Disappeared from publish \u2014 likely on CRAN now!",
+      message = "Disappeared from publish — likely on CRAN now!",
       priority = "high", tags = "rocket",
       click = cran_url(row$package)
     )
@@ -208,7 +235,7 @@ for (i in seq_len(nrow(disappeared))) {
 total_changes <- nrow(appeared) + nrow(moved) + nrow(disappeared)
 
 if (notify_failed) {
-  stop("State not updated due to notification failures \u2014 will retry next run.")
+  stop("State not updated due to notification failures — will retry next run.")
 }
 
 # Save without the key column
